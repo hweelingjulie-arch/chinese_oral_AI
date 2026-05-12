@@ -4,12 +4,8 @@ function extractTextFromOpenAI(data) {
   const parts = [];
   for (const item of data.output || []) {
     for (const content of item.content || []) {
-      if (content.type === "output_text" && content.text) {
-        parts.push(content.text);
-      }
-      if (content.type === "text" && content.text) {
-        parts.push(content.text);
-      }
+      if (content.type === "output_text" && content.text) parts.push(content.text);
+      if (content.type === "text" && content.text) parts.push(content.text);
     }
   }
   return parts.join("\n").trim();
@@ -52,57 +48,88 @@ export default async function handler(req, res) {
 
     const systemText = `
 You are a Singapore Primary Chinese oral examiner.
-Generate oral conversation questions in Chinese.
-The questions must be suitable for ${level || "Primary school"} students.
-Return STRICT JSON only, with this shape:
+
+Return STRICT JSON only:
 {
-  "mediaDescription": "Chinese description of the picture/video context",
+  "mediaDescription": "Chinese description",
   "mainQuestion": "Chinese main oral question",
   "followUpQuestions": ["question 1", "question 2", "question 3"],
-  "expectedAnswerPoints": ["point 1", "point 2", "point 3"],
+  "expectedAnswerPoints": ["point 1", "point 2", "point 3", "point 4"],
   "teacherTips": "Short teaching tip in Chinese"
 }
-Do not include markdown.
+
+Rules:
+- Suitable for ${level || "Primary school"} students.
+- Use Singapore Chinese oral exam style.
+- Do not include markdown.
+- Do not invent scenes.
 `;
 
     let userContent = [];
 
     if (mediaType === "image" && imageDataUrl) {
+      userContent = [
+        {
+          type: "input_text",
+          text: `
+IMAGE MODE.
 
-userContent = [
-  {
-    type: "input_text",
-    text: `
-Teacher Context:
-${teacherContext || "No teacher context"}
+Look at the uploaded picture and generate Chinese oral questions.
 
-Video Link:
+Teacher context:
+${teacherContext || "No extra context"}
+
+Rubric:
+${rubricText || "Assess relevance, elaboration, vocabulary, sentence structure, fluency."}
+
+Important:
+You may use visible picture details, but do not invent hidden events.
+`
+        },
+        {
+          type: "input_image",
+          image_url: imageDataUrl
+        }
+      ];
+    } else {
+      if (!teacherContext || teacherContext.trim().length < 6) {
+        return res.status(400).json({
+          error: "For video mode, please provide a clear Video Summary / Teacher Context."
+        });
+      }
+
+      userContent = [
+        {
+          type: "input_text",
+          text: `
+VIDEO MODE.
+
+The AI CANNOT watch the video link.
+The teacher summary below is the ONLY source of truth.
+
+Teacher summary:
+${teacherContext}
+
+Video link, ignore for content:
 ${videoUrl || "No video link"}
 
 Rubric:
-${rubricText || "Content, elaboration, vocabulary, sentence structure"}
+${rubricText || "Content relevance, elaboration, vocabulary, sentence structure, fluency."}
 
-IMPORTANT:
-The teacher context is the ONLY source of truth.
-Do NOT use the video link to guess content.
-Do NOT invent picture scenes.
-Do NOT mention picnic, family, park, zoo, elephant, or any random scene unless the teacher context says so.
+Hard rules:
+- Base every question on the teacher summary only.
+- Do NOT mention picnic.
+- Do NOT mention family outing.
+- Do NOT mention park picnic.
+- Do NOT mention zoo or elephant.
+- Do NOT invent a picture scene.
+- If the teacher summary says 校园环保, all questions and answer points must be about 校园环保.
+- Use Primary School Singapore Chinese oral style.
 
-Generate Singapore Chinese oral exam questions based ONLY on the teacher context.
-
-Return STRICT JSON only:
-{
-  "mediaDescription": "用中文描述老师提供的主题",
-  "mainQuestion": "一个主要口试问题",
-  "followUpQuestions": ["追问1", "追问2", "追问3"],
-  "expectedAnswerPoints": ["要点1", "要点2", "要点3", "要点4"],
-  "teacherTips": "给老师的简短教学建议"
-}
+Return JSON only.
 `
-  }
-];
-
-      
+        }
+      ];
     }
 
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -123,7 +150,7 @@ Return STRICT JSON only:
             content: userContent
           }
         ],
-        temperature: 0.4,
+        temperature: 0,
         max_output_tokens: 900
       })
     });
@@ -141,12 +168,25 @@ Return STRICT JSON only:
 
     if (!parsed) {
       return res.status(200).json({
-        mediaDescription: "",
-        mainQuestion: text || "请你描述图片或视频中的内容，并说说你的看法。",
-        followUpQuestions: [],
-        expectedAnswerPoints: [],
-        teacherTips: ""
+        mediaDescription: mediaType === "video" ? teacherContext : "",
+        mainQuestion: "请你根据老师提供的主题，说说你的看法。",
+        followUpQuestions: [
+          "你认为这个主题为什么重要？",
+          "如果你遇到类似情况，你会怎么做？",
+          "我们可以从中学到什么？"
+        ],
+        expectedAnswerPoints: [
+          "能围绕主题作答",
+          "能说出原因",
+          "能举出例子",
+          "能表达个人看法"
+        ],
+        teacherTips: "请引导学生用“首先、其次、最后”组织答案。"
       });
+    }
+
+    if (mediaType !== "image") {
+      parsed.mediaDescription = teacherContext;
     }
 
     return res.status(200).json(parsed);
