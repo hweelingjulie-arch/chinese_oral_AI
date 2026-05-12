@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Phase 4 Chinese Oral AI Examiner</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --bg: #f3f4f6;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #64748b;
+  --primary: #111827;
+  --danger: #dc2626;
+  --secondary: #e5e7eb;
+  --success-bg: #dcfce7;
+  --success-text: #166534;
+  --error-bg: #fee2e2;
+  --error-text: #991b1b;
+  --warning-bg: #fff7ed;
+  --warning-text: #9a3412;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  margin: 0;
+  padding: 28px;
+  color: var(--text);
+}
+
+.container {
+  max-width: 1180px;
+  margin: auto;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 22px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+}
+
+h1, h2, h3 { margin-top: 0; }
+
+textarea, input, select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 12px;
+  font-size: 16px;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+button {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-right: 8px;
+  margin-top: 10px;
+  font-size: 15px;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.primary { background: var(--primary); color: white; }
+.danger { background: var(--danger); color: white; }
+.secondary { background: var(--secondary); color: #111827; }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.result-box {
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.big {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.small {
+  color: var(--muted);
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+
+.error {
+  background: var(--error-bg);
+  color: var(--error-text);
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+
+.warning {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  font-size: 14px;
+}
+
+th { background: #f1f5f9; }
+
+.pill {
+  display: inline-block;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.preview-img {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 14px;
+  margin-top: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.report-block {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 14px;
+  margin-top: 12px;
+  white-space: pre-wrap;
+}
+
+.hidden { display: none; }
+
+@media(max-width: 900px) {
+  body { padding: 14px; }
+  .grid { grid-template-columns: 1fr; }
+  .result-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card">
+  <h1>Phase 4 自动华文口试 AI Examiner</h1>
+  <p>Picture / video oral practice → AI asks questions → student answers → AI scores according to rubric.</p>
+  <div class="warning">
+    Public version: Google and OpenAI keys are hidden in Vercel Environment Variables. Avoid recording students saying full names.
+  </div>
+</div>
+
+<div class="grid">
+
+  <div class="card">
+    <h2>1. Oral Stimulus</h2>
+
+    <label><b>Student Level</b></label>
+    <select id="level">
+      <option>Primary 3</option>
+      <option>Primary 4</option>
+      <option selected>Primary 5</option>
+      <option>Primary 6 / PSLE</option>
+      <option>Secondary 1</option>
+    </select>
+
+    <br><br>
+
+    <label><b>Choose Mode</b></label>
+    <select id="mediaType" onchange="toggleMediaMode()">
+      <option value="image">Picture Upload</option>
+      <option value="video">Video Link</option>
+    </select>
+
+    <div id="imageBox">
+      <br>
+      <label><b>Upload Picture</b></label>
+      <input type="file" id="imageFile" accept="image/*" onchange="handleImageUpload(event)">
+      <img id="imagePreview" class="preview-img hidden">
+    </div>
+
+    <div id="videoBox" class="hidden">
+      <br>
+      <label><b>Video Link</b></label>
+      <input id="videoUrl" placeholder="Paste YouTube / video link here">
+      <p class="small">Note: AI may not directly watch every video link. Add teacher context below for better questions.</p>
+    </div>
+
+    <br>
+    <label><b>Teacher Context / Topic</b></label>
+    <textarea id="teacherContext" placeholder="Example: 这张图讲的是一个学生在巴士上让座给老人。"></textarea>
+
+    <button class="primary" onclick="generateQuestions()">Generate AI Oral Questions</button>
+    <div id="questionStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Rubric</h2>
+    <p>Upload Excel rubric or use/edit the default rubric.</p>
+
+    <input type="file" id="rubricFile" accept=".xlsx,.xls,.csv">
+    <button class="secondary" onclick="downloadRubricTemplate()">Download Rubric Template</button>
+
+    <br><br>
+    <label><b>Rubric Text</b></label>
+    <textarea id="rubricText">内容切题 Content relevance: 5 marks
+细节说明 Elaboration: 5 marks
+词语运用 Vocabulary: 5 marks
+句子表达 Sentence structure: 5 marks
+流利度 Fluency: 5 marks
+Total: 25 marks</textarea>
+
+    <div id="rubricStatus"></div>
+  </div>
+
+</div>
+
+<div class="card">
+  <h2>3. AI Oral Questions</h2>
+
+  <label><b>Media Description</b></label>
+  <textarea id="mediaDescription" placeholder="AI will describe the image/video context here."></textarea>
+
+  <label><b>Main Question</b></label>
+  <textarea id="mainQuestion" placeholder="AI-generated main question will appear here."></textarea>
+
+  <label><b>Follow-up Questions</b></label>
+  <textarea id="followUpQuestions" placeholder="AI-generated follow-up questions will appear here."></textarea>
+
+  <label><b>Expected Answer Points</b></label>
+  <textarea id="expectedAnswerPoints" placeholder="AI-generated answer points will appear here."></textarea>
+</div>
+
+<div class="card">
+  <h2>4. Student Voice Answer</h2>
+
+  <span class="pill" id="recordingPill">Ready</span><br>
+
+  <button class="primary" id="startBtn" onclick="startRecording()">Start Recording</button>
+  <button class="danger" id="stopBtn" onclick="stopRecording()" disabled>Stop Recording</button>
+  <button class="secondary" onclick="resetRecording()">Reset Recording</button>
+
+  <div id="recordingStatus"></div>
+
+  <h3>Student Transcript</h3>
+  <textarea id="studentTranscript" placeholder="Transcript will appear here. You can also type/edit manually."></textarea>
+
+  <button class="primary" onclick="scoreStudentAnswer()">Score Student Answer</button>
+  <div id="scoreStatus"></div>
+</div>
+
+<div class="card">
+  <h2>5. AI Oral Score Report</h2>
+
+  <div class="result-grid">
+    <div class="result-box">
+      <div class="big" id="contentScore">0</div>
+      <div class="small">Content /5</div>
+    </div>
+    <div class="result-box">
+      <div class="big" id="elaborationScore">0</div>
+      <div class="small">Elaboration /5</div>
+    </div>
+    <div class="result-box">
+      <div class="big" id="vocabScore">0</div>
+      <div class="small">Vocab /5</div>
+    </div>
+    <div class="result-box">
+      <div class="big" id="sentenceScore">0</div>
+      <div class="small">Sentence /5</div>
+    </div>
+    <div class="result-box">
+      <div class="big" id="fluencyScore">0</div>
+      <div class="small">Fluency /5</div>
+    </div>
+    <div class="result-box">
+      <div class="big" id="totalScore">0/25</div>
+      <div class="small">Total</div>
+    </div>
+  </div>
+
+  <h3>Band</h3>
+  <div class="report-block" id="band">-</div>
+
+  <h3>Strengths</h3>
+  <div class="report-block" id="strengths">-</div>
+
+  <h3>Improvements</h3>
+  <div class="report-block" id="improvements">-</div>
+
+  <h3>Better Sample Answer</h3>
+  <div class="report-block" id="betterAnswer">-</div>
+
+  <h3>Student Feedback</h3>
+  <div class="report-block" id="teacherFeedback">-</div>
+
+  <h3>Parent Summary</h3>
+  <div class="report-block" id="parentSummary">-</div>
+</div>
+
+</div>
+
+<script>
+let imageDataUrl = "";
+let mediaRecorder;
+let audioChunks = [];
+let streamRef = null;
+
+document.getElementById("rubricFile").addEventListener("change", handleRubricUpload);
+
+function showStatus(id, message, type = "success") {
+  document.getElementById(id).innerHTML = `<div class="${type}">${message}</div>`;
+}
+
+function setPill(text) {
+  document.getElementById("recordingPill").innerText = text;
+}
+
+function toggleMediaMode() {
+  const mode = document.getElementById("mediaType").value;
+  document.getElementById("imageBox").classList.toggle("hidden", mode !== "image");
+  document.getElementById("videoBox").classList.toggle("hidden", mode !== "video");
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    imageDataUrl = e.target.result;
+    const img = document.getElementById("imagePreview");
+    img.src = imageDataUrl;
+    img.classList.remove("hidden");
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleRubricUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+
+    const text = rows.map(row => {
+      const area = row.area ?? row.Area ?? row["项目"] ?? "";
+      const marks = row.marks ?? row.Marks ?? row["分数"] ?? "";
+      const desc = row.description ?? row.Description ?? row["说明"] ?? "";
+      return `${area}: ${marks} marks - ${desc}`;
+    }).join("\n");
+
+    if (text.trim()) {
+      document.getElementById("rubricText").value = text;
+      showStatus("rubricStatus", `Rubric loaded. ${rows.length} rows found.`);
+    } else {
+      showStatus("rubricStatus", "Rubric loaded, but columns were not recognised. Please edit rubric text manually.", "warning");
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadRubricTemplate() {
+  const template = [
+    { area: "内容切题 Content relevance", marks: 5, description: "Answer addresses the question and picture/video clearly." },
+    { area: "细节说明 Elaboration", marks: 5, description: "Gives clear details, reasons, examples, and opinions." },
+    { area: "词语运用 Vocabulary", marks: 5, description: "Uses suitable Chinese vocabulary and topic phrases." },
+    { area: "句子表达 Sentence structure", marks: 5, description: "Uses complete and understandable Chinese sentences." },
+    { area: "流利度 Fluency", marks: 5, description: "Answer is smooth with limited hesitation." }
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(template);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "OralRubric");
+  XLSX.writeFile(workbook, "Chinese_Oral_Interaction_Rubric.xlsx");
+}
+
+async function generateQuestions() {
+  const mediaType = document.getElementById("mediaType").value;
+  const videoUrl = document.getElementById("videoUrl").value.trim();
+  const teacherContext = document.getElementById("teacherContext").value.trim();
+  const rubricText = document.getElementById("rubricText").value.trim();
+  const level = document.getElementById("level").value;
+
+  if (mediaType === "image" && !imageDataUrl) {
+    alert("Please upload a picture first.");
+    return;
+  }
+
+  if (mediaType === "video" && !videoUrl && !teacherContext) {
+    alert("Please paste a video link or add teacher context.");
+    return;
+  }
+
+  try {
+    showStatus("questionStatus", "AI is generating oral questions...");
+
+    const response = await fetch("/api/generate-question", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mediaType,
+        imageDataUrl,
+        videoUrl,
+        teacherContext,
+        level,
+        rubricText
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Question generation failed.");
+    }
+
+    document.getElementById("mediaDescription").value = data.mediaDescription || "";
+    document.getElementById("mainQuestion").value = data.mainQuestion || "";
+    document.getElementById("followUpQuestions").value = (data.followUpQuestions || []).join("\n");
+    document.getElementById("expectedAnswerPoints").value = (data.expectedAnswerPoints || []).join("\n");
+
+    showStatus("questionStatus", "Questions generated successfully.");
+
+  } catch (error) {
+    showStatus("questionStatus", error.message, "error");
+  }
+}
+
+async function startRecording() {
+  audioChunks = [];
+
+  try {
+    streamRef = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    const options = {};
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+      options.mimeType = "audio/webm;codecs=opus";
+    }
+
+    mediaRecorder = new MediaRecorder(streamRef, options);
+
+    mediaRecorder.ondataavailable = event => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      const base64 = await blobToBase64(blob);
+      await transcribeAudio(base64);
+
+      if (streamRef) {
+        streamRef.getTracks().forEach(track => track.stop());
+      }
+    };
+
+    mediaRecorder.start();
+
+    document.getElementById("startBtn").disabled = true;
+    document.getElementById("stopBtn").disabled = false;
+    setPill("Recording");
+    showStatus("recordingStatus", "Recording started. Student can answer now.");
+
+  } catch (error) {
+    showStatus("recordingStatus", `Microphone error: ${error.message}`, "error");
+  }
+}
+
+async function stopRecording() {
+  if (!mediaRecorder) {
+    showStatus("recordingStatus", "Please start recording first.", "error");
+    return;
+  }
+
+  if (mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+
+  document.getElementById("startBtn").disabled = false;
+  document.getElementById("stopBtn").disabled = true;
+  setPill("Processing");
+  showStatus("recordingStatus", "Recording stopped. Sending audio to Speech-to-Text...");
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function transcribeAudio(base64Audio) {
+  try {
+    const response = await fetch("/api/transcribe-google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        audio: base64Audio,
+        languageCode: "cmn-Hans-CN"
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Speech-to-Text failed.");
+    }
+
+    document.getElementById("studentTranscript").value = data.transcript || "";
+    setPill("Completed");
+    showStatus("recordingStatus", "Transcription completed. You can now score the answer.");
+
+  } catch (error) {
+    setPill("Error");
+    showStatus("recordingStatus", error.message, "error");
+  }
+}
+
+async function scoreStudentAnswer() {
+  const transcript = document.getElementById("studentTranscript").value.trim();
+
+  if (!transcript) {
+    alert("Please record or type the student's answer first.");
+    return;
+  }
+
+  try {
+    showStatus("scoreStatus", "AI is scoring the student answer...");
+
+    const followUpQuestions = document.getElementById("followUpQuestions").value
+      .split("\n")
+      .map(x => x.trim())
+      .filter(Boolean);
+
+    const expectedAnswerPoints = document.getElementById("expectedAnswerPoints").value
+      .split("\n")
+      .map(x => x.trim())
+      .filter(Boolean);
+
+    const response = await fetch("/api/score-answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question: document.getElementById("mainQuestion").value,
+        followUpQuestions,
+        transcript,
+        mediaDescription: document.getElementById("mediaDescription").value,
+        expectedAnswerPoints,
+        rubricText: document.getElementById("rubricText").value,
+        level: document.getElementById("level").value
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Scoring failed.");
+    }
+
+    renderScore(data);
+    showStatus("scoreStatus", "Scoring completed.");
+
+  } catch (error) {
+    showStatus("scoreStatus", error.message, "error");
+  }
+}
+
+function renderScore(data) {
+  const s = data.scores || {};
+
+  document.getElementById("contentScore").innerText = s.contentRelevance ?? 0;
+  document.getElementById("elaborationScore").innerText = s.elaboration ?? 0;
+  document.getElementById("vocabScore").innerText = s.vocabulary ?? 0;
+  document.getElementById("sentenceScore").innerText = s.sentenceStructure ?? 0;
+  document.getElementById("fluencyScore").innerText = s.fluency ?? 0;
+  document.getElementById("totalScore").innerText = `${s.total ?? 0}/${s.maxTotal ?? 25}`;
+
+  document.getElementById("band").innerText = data.band || "-";
+  document.getElementById("strengths").innerText = (data.strengths || []).join("\n") || "-";
+  document.getElementById("improvements").innerText = (data.improvements || []).join("\n") || "-";
+  document.getElementById("betterAnswer").innerText = data.betterAnswer || "-";
+  document.getElementById("teacherFeedback").innerText = data.teacherFeedback || data.rawFeedback || "-";
+  document.getElementById("parentSummary").innerText = data.parentSummary || "-";
+}
+
+function resetRecording() {
+  document.getElementById("studentTranscript").value = "";
+  document.getElementById("recordingStatus").innerHTML = "";
+  setPill("Ready");
+  document.getElementById("startBtn").disabled = false;
+  document.getElementById("stopBtn").disabled = true;
+}
+</script>
+
+</body>
+</html>
