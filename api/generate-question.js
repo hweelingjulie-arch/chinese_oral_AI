@@ -71,31 +71,34 @@ Do not include markdown.
       userContent = [
         {
           type: "input_text",
-          text: `
-Please look at this picture and generate an oral prompt.
-Teacher context: ${teacherContext || "No extra context"}
-Rubric: ${rubricText || "Assess relevance, elaboration, vocabulary, sentence structure, fluency."}
-`
-        },
-        {
-          type: "input_image",
-          image_url: imageDataUrl
-        }
-      ];
-    } else {
-      userContent = [
-        {
-          type: "input_text",
-          text: `
-Generate oral questions based on this video link or teacher-provided context.
+text: `
+Generate oral questions mainly based on the teacher context and topic summary below.
 
-Video link: ${videoUrl || "No video link"}
-Teacher context: ${teacherContext || "No extra context"}
+Teacher context:
+${teacherContext || "No context provided"}
+
+Video link:
+${videoUrl || "No link"}
+
+Rubric:
+${rubricText || "Assess relevance, elaboration, vocabulary, sentence structure, fluency."}
 
 Important:
-If the actual video content cannot be viewed, base the questions on the teacher context and the URL/title only.
-Rubric: ${rubricText || "Assess relevance, elaboration, vocabulary, sentence structure, fluency."}
+Do NOT guess random video content.
+The teacher context is the PRIMARY source of truth.
+The video link is only supplementary reference.
+Generate Singapore Chinese oral exam style questions suitable for students.
+
+Return:
+1. Media description
+2. Main question
+3. 3 follow-up questions
+4. Expected answer points
+5. Teacher teaching tip
 `
+
+
+          
         }
       ];
     }
