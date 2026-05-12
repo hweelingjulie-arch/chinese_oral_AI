@@ -237,10 +237,29 @@ th { background: #f1f5f9; }
     </div>
 
     <br>
-    <label><b>Teacher Context / Topic</b></label>
-    <textarea id="teacherContext" placeholder="Example: 这张图讲的是一个学生在巴士上让座给老人。"></textarea>
+<!-- Teacher Context Section -->
+<div class="section-card">
+  <label for="teacherContext">
+    <b>Video Summary / Teacher Context</b>
+  </label>
 
-    <button class="primary" onclick="generateQuestions()">Generate AI Oral Questions</button>
+  <textarea
+    id="teacherContext"
+    placeholder="Example: 这个视频讲的是学生如何保护校园环境，例如不乱丢垃圾、节约用水、爱护学校。"
+    rows="6"
+  ></textarea>
+
+  <p class="small">
+    For best accuracy, paste a short summary of the video topic below.
+    The AI mainly generates oral questions based on your teacher context.
+  </p>
+
+  <button class="primary" onclick="generateQuestions()">
+    Generate Questions From Context
+  </button>
+</div>
+
+    
     <div id="questionStatus"></div>
   </div>
 
