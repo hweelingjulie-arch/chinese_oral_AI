@@ -68,39 +68,41 @@ Do not include markdown.
     let userContent = [];
 
     if (mediaType === "image" && imageDataUrl) {
-      userContent = [
-        {
-          type: "input_text",
-text: `
-Generate oral questions mainly based on the teacher context and topic summary below.
 
-Teacher context:
-${teacherContext || "No context provided"}
+userContent = [
+  {
+    type: "input_text",
+    text: `
+Teacher Context:
+${teacherContext || "No teacher context"}
 
-Video link:
-${videoUrl || "No link"}
+Video Link:
+${videoUrl || "No video link"}
 
 Rubric:
-${rubricText || "Assess relevance, elaboration, vocabulary, sentence structure, fluency."}
+${rubricText || "Content, elaboration, vocabulary, sentence structure"}
 
-Important:
-Do NOT guess random video content.
-The teacher context is the PRIMARY source of truth.
-The video link is only supplementary reference.
-Generate Singapore Chinese oral exam style questions suitable for students.
+IMPORTANT:
+The teacher context is the ONLY source of truth.
+Do NOT use the video link to guess content.
+Do NOT invent picture scenes.
+Do NOT mention picnic, family, park, zoo, elephant, or any random scene unless the teacher context says so.
 
-Return:
-1. Media description
-2. Main question
-3. 3 follow-up questions
-4. Expected answer points
-5. Teacher teaching tip
+Generate Singapore Chinese oral exam questions based ONLY on the teacher context.
+
+Return STRICT JSON only:
+{
+  "mediaDescription": "用中文描述老师提供的主题",
+  "mainQuestion": "一个主要口试问题",
+  "followUpQuestions": ["追问1", "追问2", "追问3"],
+  "expectedAnswerPoints": ["要点1", "要点2", "要点3", "要点4"],
+  "teacherTips": "给老师的简短教学建议"
+}
 `
+  }
+];
 
-
-          
-        }
-      ];
+      
     }
 
     const response = await fetch("https://api.openai.com/v1/responses", {
